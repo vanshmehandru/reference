@@ -3,7 +3,64 @@ import random
 import datetime
 import sys
 
-# Define log attributes for each platform
+# ==========================================
+# CONFIGURATION
+# ==========================================
+
+SOURCE_IPS = [
+    "192.168.1.10",
+    "192.168.1.11",
+    "192.168.1.12",
+    "192.168.1.13",
+    "192.168.1.14",
+    "192.168.1.15",
+    "192.168.1.16",
+    "192.168.1.17",
+]
+
+DESTINATION_IPS = [
+    "10.0.0.5",
+    "10.0.0.10",
+    "10.0.0.15",
+    "10.0.0.20",
+    "10.0.0.25",
+]
+
+USERS = [
+    "admin",
+    "john",
+    "alice",
+    "svc_backup",
+    "svc_sql",
+    "guest",
+]
+
+HOSTS = [
+    "WS01",
+    "WS02",
+    "WS03",
+    "WS04",
+    "APP01",
+    "FILE01",
+    "DB01",
+    "DC01",
+]
+
+PROTOCOLS = ["TCP", "UDP"]
+
+APPLICATIONS = [
+    "HTTPS",
+    "HTTP",
+    "DNS",
+    "SMB",
+    "RDP",
+    "SSH",
+]
+
+# ==========================================
+# FIELD DEFINITIONS
+# ==========================================
+
 qradar_fields = [
     "EventID","EventName","EventCategory","Severity","Credibility","Relevance","Magnitude",
     "SourceIP","SourcePort","SourceMAC","SourceHostname","SourceUser","SourceGeo",
@@ -31,141 +88,315 @@ arista_fields = [
     "StartTime","EndTime","DetectionTime","CollectorID"
 ]
 
-# Utility functions
-def random_ip():
-    return ".".join(str(random.randint(1, 254)) for _ in range(4))
+# ==========================================
+# EVENT PROFILES
+# ==========================================
 
-def random_time():
-    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+QRADAR_EVENTS = [
+    ("Failed Login Attempt", "Authentication", 389),
+    ("Successful Login", "Authentication", 389),
+    ("VPN Login", "Authentication", 443),
+    ("DNS Query", "DNS", 53),
+    ("DNS Response", "DNS", 53),
+    ("Port Scan Detected", "Reconnaissance", 22),
+    ("Service Discovery", "Reconnaissance", 135),
+    ("HTTP Request", "Network", 80),
+    ("HTTPS Session", "Network", 443),
+    ("SMB Connection", "Network", 445),
+    ("RDP Connection", "Network", 3389),
+    ("Malware Detected", "Malware", 445),
+    ("Suspicious Process", "Malware", 8080),
+    ("Data Exfiltration", "Exfiltration", 443),
+    ("Beaconing Activity", "Command & Control", 443),
+]
 
-# Generators
+STEALTHWATCH_EVENTS = [
+    ("Anomaly", "Suspicious Traffic"),
+    ("Beaconing", "Periodic Communication"),
+    ("Reconnaissance", "Port Scan Activity"),
+    ("Data Transfer", "Large Data Transfer"),
+    ("Malware", "Known Malicious Connection"),
+    ("DNS", "Suspicious DNS Query"),
+    ("Authentication", "Multiple Login Failures"),
+    ("Authentication", "Successful Login"),
+    ("Network", "SMB Traffic"),
+    ("Network", "RDP Session"),
+]
+
+ARISTA_EVENTS = [
+    ("Suspicious Beaconing", "Command & Control", "Cobalt Strike", "T1071.001"),
+    ("Data Exfiltration", "Exfiltration", "Large Transfer", "T1048"),
+    ("Port Scan", "Reconnaissance", "Network Scan", "T1046"),
+    ("Malware Activity", "Malware", "Emotet", "T1105"),
+    ("Lateral Movement", "Lateral Movement", "Remote Service", "T1021"),
+    ("DNS Tunneling", "Command & Control", "DNS Tunnel", "T1071.004"),
+    ("Credential Access", "Credential Access", "Password Spray", "T1110"),
+    ("SMB Discovery", "Reconnaissance", "SMB Enumeration", "T1135"),
+]
+
+# ==========================================
+# HELPERS
+# ==========================================
+
+base_time = datetime.datetime.now()
+
+def random_timestamp():
+    offset = random.randint(0, 86400)
+    return (base_time + datetime.timedelta(seconds=offset)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+def random_ip_pair():
+    return (
+        random.choice(SOURCE_IPS),
+        random.choice(DESTINATION_IPS)
+    )
+
+# ==========================================
+# QRADAR
+# ==========================================
+
 def generate_qradar_log():
+
+    src_ip, dst_ip = random_ip_pair()
+    event_name, category, dst_port = random.choice(QRADAR_EVENTS)
+
     return {
         "EventID": random.randint(1000,9999),
-        "EventName": "Failed Login Attempt",
-        "EventCategory": "Authentication",
-        "Severity": random.choice([1,3,5]),
+        "EventName": event_name,
+        "EventCategory": category,
+        "Severity": random.randint(1,10),
         "Credibility": random.randint(1,10),
         "Relevance": random.randint(1,10),
         "Magnitude": random.randint(50,500),
-        "SourceIP": random_ip(),
+
+        "SourceIP": src_ip,
         "SourcePort": random.randint(1024,65535),
+
         "SourceMAC": "00:1A:2B:3C:4D:5E",
-        "SourceHostname": "HR-Laptop-01",
-        "SourceUser": "jdoe",
-        "SourceGeo": "India",
-        "DestinationIP": random_ip(),
-        "DestinationPort": 389,
+        "SourceHostname": random.choice(HOSTS),
+        "SourceUser": random.choice(USERS),
+        "SourceGeo": random.choice(["India","USA","UK"]),
+
+        "DestinationIP": dst_ip,
+        "DestinationPort": dst_port,
+
         "DestinationMAC": "00:5E:6F:7A:8B:9C",
-        "DestinationHostname": "AD-Server-01",
-        "DestinationUser": "Administrator",
-        "DestinationGeo": "Internal",
-        "Protocol": "TCP",
+        "DestinationHostname": random.choice(HOSTS),
+        "DestinationUser": random.choice(USERS),
+        "DestinationGeo": random.choice(["Internal","Germany","Singapore"]),
+
+        "Protocol": random.choice(PROTOCOLS),
+
         "BytesSent": random.randint(100,10000),
         "BytesReceived": random.randint(100,10000),
-        "PacketsSent": random.randint(1,50),
-        "PacketsReceived": random.randint(1,50),
-        "Direction": "Inbound",
+
+        "PacketsSent": random.randint(1,100),
+        "PacketsReceived": random.randint(1,100),
+
+        "Direction": random.choice(["Inbound","Outbound","Lateral"]),
+
         "LogSourceID": 102,
-        "LogSourceType": "Windows Security Event Log",
-        "DeviceVendorProduct": "Microsoft Windows Server",
-        "StartTime": random_time(),
-        "EndTime": random_time(),
-        "LogSourceTime": random_time(),
-        "StorageTime": random_time(),
-        "EventDescription": "User failed to authenticate",
-        "RuleName": "Multiple Failed Logins",
+        "LogSourceType": "Security Event Log",
+        "DeviceVendorProduct": "Security Platform",
+
+        "StartTime": random_timestamp(),
+        "EndTime": random_timestamp(),
+        "LogSourceTime": random_timestamp(),
+        "StorageTime": random_timestamp(),
+
+        "EventDescription": event_name,
+        "RuleName": category + " Rule",
+
         "OffenseID": random.randint(10000,99999),
-        "EventCount": 1,
-        "CustomProperties": "Process=lsass.exe"
+        "EventCount": random.randint(1,5),
+
+        "CustomProperties": "Process=svchost.exe"
     }
+
+# ==========================================
+# STEALTHWATCH
+# ==========================================
 
 def generate_stealthwatch_log():
+
+    src_ip, dst_ip = random_ip_pair()
+    category, message = random.choice(STEALTHWATCH_EVENTS)
+
     return {
         "EventID": random.randint(1000,9999),
-        "EventCategory": "Anomaly",
-        "Message": "Suspicious traffic detected",
-        "FullMessage": "Source host communicating with external target",
-        "AlarmID": "AL-"+str(random.randint(1000,9999)),
-        "AlarmStatus": "ACTIVE",
+        "EventCategory": category,
+        "Message": message,
+        "FullMessage": message + " detected",
+
+        "AlarmID": f"AL-{random.randint(1000,9999)}",
+        "AlarmStatus": random.choice(["ACTIVE","CLOSED"]),
         "AlarmSeverity": random.choice(["Minor","Major","Critical"]),
-        "SourceIP": random_ip(),
+
+        "SourceIP": src_ip,
         "SourcePort": random.randint(1024,65535),
+
         "SourceHG": "Inside",
-        "SourceUser": "admin",
-        "SourceHostname": "Finance-PC",
-        "DestinationIP": random_ip(),
-        "DestinationPort": 80,
+        "SourceUser": random.choice(USERS),
+        "SourceHostname": random.choice(HOSTS),
+
+        "DestinationIP": dst_ip,
+        "DestinationPort": random.choice([53,80,443,445,3389]),
+
         "TargetHG": "Outside",
-        "TargetUser": "websvc",
-        "TargetHostname": "www.example.com",
-        "Protocol": "TCP",
+        "TargetUser": random.choice(USERS),
+        "TargetHostname": random.choice(HOSTS),
+
+        "Protocol": random.choice(PROTOCOLS),
+
         "FlowCollectorName": "Collector1",
-        "FlowCollectorIP": random_ip(),
+        "FlowCollectorIP": random.choice(DESTINATION_IPS),
+
         "ExporterName": "Router1",
-        "ExporterIP": random_ip(),
-        "ExporterInfo": "Cisco Router",
-        "StartTime": random_time(),
-        "EndTime": random_time(),
-        "Domain": "Corporate"
+        "ExporterIP": random.choice(DESTINATION_IPS),
+
+        "ExporterInfo": "Flow Exporter",
+
+        "StartTime": random_timestamp(),
+        "EndTime": random_timestamp(),
+
+        "Domain": random.choice([
+            "Corporate",
+            "Finance",
+            "HR",
+            "Engineering"
+        ])
     }
 
+# ==========================================
+# ARISTA
+# ==========================================
+
 def generate_arista_log():
+
+    src_ip, dst_ip = random_ip_pair()
+
+    event_type, threat_category, threat_name, mitre = random.choice(
+        ARISTA_EVENTS
+    )
+
     return {
-        "EventID": "NDR-"+str(random.randint(1000,9999)),
-        "EventType": "Suspicious Beaconing",
-        "Severity": "High",
-        "DetectionRule": "Beaconing Behavior",
-        "ConfidenceScore": random.randint(70,100),
-        "SourceIP": random_ip(),
+        "EventID": f"NDR-{random.randint(1000,9999)}",
+        "EventType": event_type,
+
+        "Severity": random.choice([
+            "Low",
+            "Medium",
+            "High",
+            "Critical"
+        ]),
+
+        "DetectionRule": event_type + " Detection",
+
+        "ConfidenceScore": random.randint(50,100),
+
+        "SourceIP": src_ip,
         "SourcePort": random.randint(1024,65535),
+
         "SourceMAC": "00:1B:44:11:3A:B7",
-        "SourceHostname": "Finance-PC-07",
-        "SourceUser": "vsharma",
-        "SourceGeo": "India",
-        "DestinationIP": random_ip(),
-        "DestinationPort": 443,
+        "SourceHostname": random.choice(HOSTS),
+        "SourceUser": random.choice(USERS),
+        "SourceGeo": random.choice(["India","USA","UK"]),
+
+        "DestinationIP": dst_ip,
+        "DestinationPort": random.choice([53,80,443,445,3389]),
+
         "DestinationMAC": "00:5E:6F:7A:8B:9C",
-        "DestinationHostname": "malicious-c2.example.com",
-        "DestinationUser": "N/A",
-        "DestinationGeo": "Singapore",
-        "Protocol": "TCP",
-        "BytesSent": random.randint(1000,20000),
-        "BytesReceived": random.randint(100,5000),
-        "PacketsSent": random.randint(10,100),
-        "PacketsReceived": random.randint(5,50),
-        "FlowDirection": "Outbound",
-        "FlowDuration": "00:01:12",
-        "Application": "HTTPS",
-        "ThreatCategory": "Command & Control",
-        "ThreatName": "Cobalt Strike Beacon",
-        "MITRETechnique": "T1071.001",
-        "DetectionEngine": "Flow Analytics + ML",
-        "StartTime": random_time(),
-        "EndTime": random_time(),
-        "DetectionTime": random_time(),
+        "DestinationHostname": random.choice(HOSTS),
+        "DestinationUser": random.choice(USERS),
+        "DestinationGeo": random.choice(["Singapore","Germany","USA"]),
+
+        "Protocol": random.choice(PROTOCOLS),
+
+        "BytesSent": random.randint(1000,50000),
+        "BytesReceived": random.randint(100,20000),
+
+        "PacketsSent": random.randint(10,500),
+        "PacketsReceived": random.randint(5,300),
+
+        "FlowDirection": random.choice([
+            "Inbound",
+            "Outbound",
+            "Lateral"
+        ]),
+
+        "FlowDuration": str(
+            datetime.timedelta(
+                seconds=random.randint(10,600)
+            )
+        ),
+
+        "Application": random.choice(APPLICATIONS),
+
+        "ThreatCategory": threat_category,
+        "ThreatName": threat_name,
+        "MITRETechnique": mitre,
+
+        "DetectionEngine": "Analytics Engine",
+
+        "StartTime": random_timestamp(),
+        "EndTime": random_timestamp(),
+        "DetectionTime": random_timestamp(),
+
         "CollectorID": "NDR-Sensor-01"
     }
 
-# Write logs to CSV
+# ==========================================
+# CSV WRITER
+# ==========================================
+
 def write_csv(filename, fields, generator, count):
+
     with open(filename, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
+
         writer.writeheader()
+
         for _ in range(count):
             writer.writerow(generator())
 
+# ==========================================
+# MAIN
+# ==========================================
+
 if __name__ == "__main__":
-    # Default to 1000 logs if no argument provided
-    num_logs = 1000
+
+    count = 1000
+
     if len(sys.argv) > 1:
         try:
-            num_logs = int(sys.argv[1])
-        except ValueError:
-            print("Invalid input, using default 1000 logs.")
+            count = int(sys.argv[1])
+        except:
+            pass
 
-    write_csv("qradar_logs.csv", qradar_fields, generate_qradar_log, num_logs)
-    write_csv("stealthwatch_logs.csv", stealthwatch_fields, generate_stealthwatch_log, num_logs)
-    write_csv("arista_logs.csv", arista_fields, generate_arista_log, num_logs)
+    write_csv(
+        "qradar_logs.csv",
+        qradar_fields,
+        generate_qradar_log,
+        count
+    )
 
-    print(f"CSV logs generated ({num_logs} per platform) for QRadar, Stealthwatch, and Arista NDR!")
+    write_csv(
+        "stealthwatch_logs.csv",
+        stealthwatch_fields,
+        generate_stealthwatch_log,
+        count
+    )
+
+    write_csv(
+        "arista_logs.csv",
+        arista_fields,
+        generate_arista_log,
+        count
+    )
+
+    print(f"Generated {count} logs per platform.")
+    print("Created:")
+    print(" - qradar_logs.csv")
+    print(" - stealthwatch_logs.csv")
+    print(" - arista_logs.csv")
